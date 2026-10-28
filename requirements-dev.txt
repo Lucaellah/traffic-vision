@@ -1,0 +1,7 @@
+# 單元測試只需要純邏輯模組的依賴，不必安裝 PyTorch / ultralytics
+numpy
+pandas
+openpyxl
+opencv-python-headless
+pytest
+ruff

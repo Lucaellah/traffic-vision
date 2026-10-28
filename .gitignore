@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# 模型權重與執行產物
+weights/
+runs/
+*.pt
+
+# 使用者資料不進版控
+*.mp4
+*.avi
+*.mov
+*.mkv

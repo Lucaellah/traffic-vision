@@ -1,0 +1,10 @@
+[server]
+# 只在本機監聽；Docker 內會用 --server.address=0.0.0.0 覆寫
+address = "localhost"
+maxUploadSize = 2048
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#f59e0b"
