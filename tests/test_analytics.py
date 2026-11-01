@@ -41,6 +41,14 @@ def test_class_counts_unique_tracks(tracks):
     assert counts.to_dict() == {"bus": 1, "car": 1}
 
 
+def test_class_counts_track_counted_once_when_class_flips():
+    # 同一台車被判成 car 兩次、van 一次：只算一台 car
+    df = pd.DataFrame({"track_id": [7, 7, 7], "x": [0, 1, 2], "y": [0, 0, 0],
+                       "class_name": ["car", "van", "car"]})
+    counts = analytics.class_counts(analytics.normalize(df))
+    assert counts.to_dict("records") == [{"class_name": "car", "count": 1}]
+
+
 def test_track_summary_distance_and_speed(tracks):
     s = analytics.track_summary(analytics.normalize(tracks)).set_index("track_id")
     assert s.at[1, "distance_px"] == pytest.approx(10.0)  # 兩步各 5 px

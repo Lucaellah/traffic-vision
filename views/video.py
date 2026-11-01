@@ -1,5 +1,6 @@
 import streamlit as st
 
+from traffic_vision import analytics
 from traffic_vision.counting import LineCounter
 from traffic_vision.labels import display_name
 from traffic_vision.models import load_model
@@ -100,7 +101,7 @@ if tracks.empty:
     st.warning("沒有追蹤到任何物件。")
     st.stop()
 
-counts = tracks.groupby("class_name")["track_id"].nunique().sort_values(ascending=False)
+counts = analytics.class_counts(tracks).set_index("class_name")["count"]
 counts.index = counts.index.map(display_name)
 st.bar_chart(counts, horizontal=True)
 

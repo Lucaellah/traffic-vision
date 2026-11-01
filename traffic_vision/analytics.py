@@ -78,11 +78,19 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values(["track_id", "frame"]).reset_index(drop=True)
 
 
+def track_classes(df: pd.DataFrame) -> pd.Series:
+    """每個物件最常被判定的類別。
+
+    同一台車在不同幀可能被判成 car 或 van，直接依類別數 track_id 會重複計算。
+    """
+    return df.groupby("track_id")["class_name"].agg(lambda s: s.mode().iat[0])
+
+
 def class_counts(df: pd.DataFrame) -> pd.DataFrame:
-    """各類別的不重複物件數。"""
+    """各類別的物件數（每個物件只算一次）。"""
     return (
-        df.groupby("class_name")["track_id"].nunique()
-        .rename("count").sort_values(ascending=False).reset_index()
+        track_classes(df).value_counts()
+        .rename_axis("class_name").rename("count").reset_index()
     )
 
 
@@ -93,7 +101,6 @@ def track_summary(df: pd.DataFrame) -> pd.DataFrame:
     d = d.assign(step=step.fillna(0.0))
 
     agg = {
-        "class_name": ("class_name", lambda s: s.mode().iat[0]),
         "points": ("frame", "size"),
         "first_frame": ("frame", "min"),
         "last_frame": ("frame", "max"),
@@ -101,7 +108,9 @@ def track_summary(df: pd.DataFrame) -> pd.DataFrame:
     }
     if "time_s" in d.columns:
         agg["duration_s"] = ("time_s", lambda s: s.max() - s.min())
-    out = d.groupby("track_id").agg(**agg).reset_index()
+    out = d.groupby("track_id").agg(**agg)
+    out.insert(0, "class_name", track_classes(d))
+    out = out.reset_index()
 
     if "duration_s" in out.columns:
         dur = out["duration_s"].replace(0, np.nan)
