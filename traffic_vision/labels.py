@@ -18,11 +18,19 @@ ZH_NAMES = {
     # DOTA（空拍 OBB 模型）
     "small vehicle": "小型車",
     "large vehicle": "大型車",
+    # VisDrone（微調模型）
+    "pedestrian": "行人",
+    "people": "人（非行走）",
+    "van": "廂型車",
+    "tricycle": "三輪車",
+    "awning-tricycle": "有篷三輪車",
+    "motor": "機車",
 }
 
 # 交通分析預設關注的類別（不存在於目前模型的會被略過）
 TRAFFIC_CLASSES = [
     "person", "bicycle", "car", "motorcycle", "bus", "truck", "small vehicle", "large vehicle",
+    "pedestrian", "van", "tricycle", "awning-tricycle", "motor",
 ]
 
 

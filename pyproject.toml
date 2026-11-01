@@ -1,7 +1,7 @@
 [project]
 name = "traffic-vision"
 version = "0.1.0"
-description = "Local-first traffic video analytics with YOLO11 and Streamlit"
+description = "Local-first traffic video analytics with YOLO26 and Streamlit"
 readme = "README.md"
 license = { text = "AGPL-3.0-only" }
 requires-python = ">=3.10"

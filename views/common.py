@@ -9,7 +9,7 @@ from pathlib import Path
 import streamlit as st
 
 from traffic_vision.labels import TRAFFIC_CLASSES, display_name
-from traffic_vision.models import MODELS, load_model
+from traffic_vision.models import available_models, load_model
 
 
 @st.cache_resource(show_spinner="載入模型中（第一次使用會自動下載權重）…")
@@ -42,8 +42,9 @@ def model_params(key: str, *, default_traffic: bool = True) -> ModelParams:
     """側邊欄的模型與參數設定。"""
     with st.sidebar:
         st.subheader("模型設定")
-        label = st.selectbox("模型", list(MODELS), key=f"{key}_model")
-        model_file = MODELS[label]
+        models = available_models()
+        label = st.selectbox("模型", list(models), key=f"{key}_model")
+        model_file = models[label]
         conf = st.slider("信心門檻 conf", 0.05, 0.95, 0.25, 0.05, key=f"{key}_conf",
                          help="越低偵測到的物件越多，但誤判也會增加")
         iou = st.slider("NMS IoU", 0.1, 0.95, 0.7, 0.05, key=f"{key}_iou",

@@ -7,6 +7,7 @@ __pycache__/
 # 模型權重與執行產物
 weights/
 runs/
+datasets/
 *.pt
 
 # 使用者資料不進版控
