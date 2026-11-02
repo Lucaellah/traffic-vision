@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 from .counting import LineCounter, Point
-from .detection import box_xywh, result_boxes
 
 TRACK_COLUMNS = [
     "frame", "time_s", "track_id", "class_id", "class_name", "conf", "x", "y", "w", "h",
@@ -100,12 +99,37 @@ def draw_line(canvas: np.ndarray, counter: LineCounter) -> None:
     p1 = tuple(int(v) for v in counter.start)
     p2 = tuple(int(v) for v in counter.end)
     cv2.line(canvas, p1, p2, LINE_COLOR, 3, cv2.LINE_AA)
+    draw_in_arrow(canvas, counter)
     text = f"IN {counter.count_in}  OUT {counter.count_out}  TOTAL {counter.total}"
     scale = max(canvas.shape[1] / 1280, 0.6)
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, 2)
     cv2.rectangle(canvas, (16, 16), (32 + tw, 32 + th + 8), (0, 0, 0), -1)
     cv2.putText(canvas, text, (24, 24 + th), cv2.FONT_HERSHEY_SIMPLEX, scale,
                 (255, 255, 255), 2, cv2.LINE_AA)
+
+
+def draw_in_arrow(canvas: np.ndarray, counter: LineCounter) -> None:
+    """在計數線中點畫一個穿過線的箭頭，箭頭方向就是 IN。"""
+    normal = counter.in_normal()
+    if normal is None:
+        return
+    nx, ny = normal
+    mx = (counter.start[0] + counter.end[0]) / 2
+    my = (counter.start[1] + counter.end[1]) / 2
+    half = max(min(canvas.shape[:2]) * 0.06, 20)
+    tail = (int(mx - nx * half), int(my - ny * half))
+    head = (int(mx + nx * half), int(my + ny * half))
+    cv2.arrowedLine(canvas, tail, head, (0, 0, 0), 9, cv2.LINE_AA, tipLength=0.4)  # 黑邊比較醒目
+    cv2.arrowedLine(canvas, tail, head, LINE_COLOR, 4, cv2.LINE_AA, tipLength=0.4)
+
+    scale = max(canvas.shape[1] / 1280, 0.6)  # 和左上角計數文字一樣大
+    (tw, th), _ = cv2.getTextSize("IN", cv2.FONT_HERSHEY_SIMPLEX, scale, 2)
+    # 文字放在箭頭尖端外側，以文字中心對齊
+    cx = mx + nx * (half + th + 6)
+    cy = my + ny * (half + th + 6)
+    org = (int(cx - tw / 2), int(cy + th / 2))
+    cv2.putText(canvas, "IN", org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 6, cv2.LINE_AA)
+    cv2.putText(canvas, "IN", org, cv2.FONT_HERSHEY_SIMPLEX, scale, LINE_COLOR, 2, cv2.LINE_AA)
 
 
 def draw_trails(canvas: np.ndarray, trails: dict[int, deque], active_ids: list[int]) -> None:
@@ -154,10 +178,10 @@ def process_video(
             # 車多時標籤很容易蓋住畫面：縮小線寬、拿掉信心分數
             canvas = result.plot(conf=False, labels=show_labels, line_width=2)
             active: list[int] = []
-            boxes = result_boxes(result)
+            boxes = result.boxes
             if boxes is not None and boxes.id is not None:
                 for (x, y, w, h), tid, c, p in zip(
-                    box_xywh(boxes),
+                    boxes.xywh.cpu().numpy(),
                     boxes.id.int().cpu().tolist(),
                     boxes.cls.int().cpu().tolist(),
                     boxes.conf.cpu().numpy(),

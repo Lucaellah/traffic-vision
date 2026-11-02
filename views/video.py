@@ -39,7 +39,8 @@ st.subheader("計數線")
 use_line = st.toggle("啟用越線計數", value=True)
 line = None
 if use_line:
-    st.caption("用畫面寬高的百分比設定線段兩端點。由上往下穿越「左→右」的線會算 IN。")
+    st.caption("用畫面寬高的百分比設定線段兩端點。線上的箭頭指向 IN 的方向，"
+               "反方向穿越算 OUT；對調起點和終點即可反轉方向。")
     c1, c2 = st.columns(2)
     x1 = c1.slider("起點 X %", 0, 100, 0)
     y1 = c1.slider("起點 Y %", 0, 100, 60)

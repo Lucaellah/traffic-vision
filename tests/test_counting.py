@@ -54,3 +54,14 @@ def test_diagonal_line_and_multiple_tracks():
     c.update(2, (60, 40))
     assert c.total == 2
     assert c.crossed[1] != c.crossed[2]
+
+
+def test_in_normal_points_to_in_side():
+    c = LineCounter(*H_LINE)
+    assert c.in_normal() == (0.0, 1.0)  # 左→右的水平線：IN 朝下，和 test_top_to_bottom_is_in 一致
+    reverse = LineCounter(H_LINE[1], H_LINE[0])
+    assert reverse.in_normal() == (-0.0, -1.0)  # 對調起終點，IN 朝上
+
+
+def test_in_normal_degenerate_line():
+    assert LineCounter((10, 10), (10, 10)).in_normal() is None

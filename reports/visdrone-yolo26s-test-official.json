@@ -1,0 +1,84 @@
+{
+  "model": "visdrone-yolo26s",
+  "split": "test",
+  "imgsz": 1024,
+  "max_dets": 500,
+  "dropped_gt": 414,
+  "dropped_pred": 28003,
+  "summary": {
+    "ultralytics": {
+      "map50": 0.4049206312468794,
+      "map50_95": 0.23524077890372086
+    },
+    "ultralytics_ignore": {
+      "map50": 0.4118908411170644,
+      "map50_95": 0.23814454735207008
+    },
+    "official_ignore": {
+      "map50": 0.4119040770889185,
+      "map50_95": 0.23782415935447573
+    }
+  },
+  "classes": [
+    {
+      "class": "pedestrian",
+      "ultralytics": 0.41219663431538633,
+      "ultralytics_ignore": 0.4227708586038297,
+      "official_ignore": 0.42268441926341843
+    },
+    {
+      "class": "people",
+      "ultralytics": 0.23679359518597815,
+      "ultralytics_ignore": 0.24649160414312105,
+      "official_ignore": 0.24651664914283228
+    },
+    {
+      "class": "bicycle",
+      "ultralytics": 0.1912637037497092,
+      "ultralytics_ignore": 0.20102955955694946,
+      "official_ignore": 0.20093114247090899
+    },
+    {
+      "class": "car",
+      "ultralytics": 0.7993832204594531,
+      "ultralytics_ignore": 0.8024613339189325,
+      "official_ignore": 0.8033459648957876
+    },
+    {
+      "class": "van",
+      "ultralytics": 0.4217974885351409,
+      "ultralytics_ignore": 0.4237890568768171,
+      "official_ignore": 0.42390953360924194
+    },
+    {
+      "class": "truck",
+      "ultralytics": 0.45695498633324083,
+      "ultralytics_ignore": 0.458420192492461,
+      "official_ignore": 0.45847416828113247
+    },
+    {
+      "class": "tricycle",
+      "ultralytics": 0.2569993934811317,
+      "ultralytics_ignore": 0.2631931454895839,
+      "official_ignore": 0.2638892302610767
+    },
+    {
+      "class": "awning-tricycle",
+      "ultralytics": 0.23927062900181906,
+      "ultralytics_ignore": 0.24490782403691064,
+      "official_ignore": 0.2433578721676508
+    },
+    {
+      "class": "bus",
+      "ultralytics": 0.6194595067020496,
+      "ultralytics_ignore": 0.6202049566855221,
+      "official_ignore": 0.6205065447242148
+    },
+    {
+      "class": "motor",
+      "ultralytics": 0.41508715470488466,
+      "ultralytics_ignore": 0.4356398793665172,
+      "official_ignore": 0.4354252460729219
+    }
+  ]
+}

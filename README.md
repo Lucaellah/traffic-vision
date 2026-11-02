@@ -26,7 +26,7 @@ streamlit run app.py
 
 用瀏覽器開啟 <http://localhost:8501>。第一次使用某個模型時，會自動把權重下載到 `weights/`。
 
-**怎麼選模型**：路口監視器、行車記錄器這類平視畫面，用 YOLO26 一般模型（COCO 類別）；無人機空拍、俯視畫面，請選 **-obb** 模型（以 DOTA 空拍資料集訓練的旋轉框模型）。一般模型幾乎認不出從正上方拍的車。
+**怎麼選模型**：選單預設是 **YOLO26s（平衡）**，適合路口監視器、行車記錄器這類平視畫面（COCO 類別）。無人機空拍、俯視畫面請選 **YOLO26s-visdrone（空拍 / 俯視）**，這是在 VisDrone 上微調的模型（見下方「微調車輛偵測模型」，需先訓練）。一般模型幾乎認不出從空中拍的車和機車。
 
 ### Docker（CPU）
 
@@ -49,31 +49,92 @@ python -m training.finetune
 # 3. 用 Ultralytics 官方驗證器在測試集（test-dev）評估，報告輸出到 reports/
 python -m training.evaluate --weights weights/custom/visdrone-yolo26s.pt --split test
 
-# 4. 和沒有微調的 COCO 預訓練模型比較（零樣本）
-python -m training.zeroshot yolo26s.pt custom/visdrone-yolo26s.pt --split test
+# 4. 跨資料集比較：預訓練與微調模型分別在 COCO val2017、VisDrone test-dev 上評估
+#    （第一次會下載 COCO val2017，約 1 GB）
+python -m training.crossdomain
+
+# 5. 依 VisDrone 官方評估工具的規則重算（處理忽略區域、官方計分方式）
+python -m training.visdrone_eval --weights weights/custom/visdrone-yolo26s.pt --split test
 ```
 
 想試其他大小的模型時，用 `--model yolo26m.pt` 再訓練一次，評估後以 `python -m training.compare` 把多份報告整理成比較表。
 
-**結果**：YOLO26s 在 VisDrone 上微調（imgsz 1024、batch 16，第 60 個 epoch 提早停止，RTX 4090 約 64 分鐘）。驗證集（val）只用來挑選最佳 epoch，以下分數全部來自訓練過程完全沒用到的測試集 test-dev（1,610 張），用官方驗證器評估。
+**結果**：YOLO26s 在 VisDrone 上微調（imgsz 1024、batch 16，第 60 個 epoch 提早停止，RTX 4090 約 64 分鐘）。驗證集（val）只用來挑選最佳 epoch，以下 VisDrone 的分數全部來自訓練過程完全沒用到的測試集 test-dev（1,610 張），用官方驗證器評估。
 
 10 個 VisDrone 類別：mAP50 **0.404**、mAP50-95 **0.235**、Precision 0.535、Recall 0.414，每張圖 2.75 ms。
 
-和沒有微調的 COCO 預訓練 YOLO26s（零樣本）比較。兩者類別不同，所以只比共同的 6 類：行人和「人（非行走）」合併為「人」，汽車和廂型車合併為「汽車」，三輪車兩類不計。
+**跨資料集比較**：COCO 預訓練與 VisDrone 微調的 YOLO26s，分別在 COCO val2017（5,000 張）和 VisDrone test-dev 上評估。兩個資料集的類別不同，只比共同的 6 類：VisDrone 的行人和「人（非行走）」合併為「人」，汽車和廂型車合併為「汽車」，三輪車兩類不計。評估解析度用各資料集的標準設定（COCO 640、VisDrone 1024），微調模型在 COCO 上另外補測 1024。
 
-| 模型 | mAP50 | 人 | 腳踏車 | 汽車 | 機車 | 公車 | 卡車 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| YOLO26s 零樣本 | 0.206 | 0.219 | 0.073 | 0.526 | 0.093 | 0.196 | 0.130 |
-| YOLO26s 微調 | **0.487** | **0.401** | **0.190** | **0.839** | **0.415** | **0.619** | **0.457** |
+mAP50：
 
-- **微調的幫助很大**：mAP50 從 0.206 提升到 0.487；機車從 0.093 提升到 0.415，約 4.5 倍。COCO 的日常照片裡幾乎沒有從空中俯拍的機車。
-- 測試集分數明顯低於驗證集（mAP50：test 0.404、val 0.499），這是 VisDrone 常見的現象，test-dev 的場景比較難。
+| 測試集 | 模型 | 人 | 腳踏車 | 汽車 | 機車 | 公車 | 卡車 | **6 類平均** | 評估解析度 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| COCO | COCO 預訓練 | 0.824 | 0.593 | 0.696 | 0.756 | 0.850 | 0.595 | **0.719** | 640 |
+| COCO | VisDrone 微調 | 0.140 | 0.057 | 0.220 | 0.024 | 0.041 | 0.074 | **0.093** | 640 |
+| COCO | VisDrone 微調 | 0.163 | 0.040 | 0.220 | 0.028 | 0.089 | 0.076 | **0.103** | 1024 |
+| VisDrone | COCO 預訓練 | 0.219 | 0.073 | 0.526 | 0.093 | 0.196 | 0.130 | **0.206** | 1024 |
+| VisDrone | VisDrone 微調 | 0.401 | 0.190 | 0.839 | 0.415 | 0.619 | 0.457 | **0.487** | 1024 |
 
-完整數字見 [reports/visdrone-yolo26s-test.md](reports/visdrone-yolo26s-test.md)、[reports/zeroshot-test.md](reports/zeroshot-test.md)；驗證集的結果在 [reports/visdrone-yolo26s-val.md](reports/visdrone-yolo26s-val.md)。
+mAP50-95：
+
+| 測試集 | 模型 | 人 | 腳踏車 | 汽車 | 機車 | 公車 | 卡車 | **6 類平均** | 評估解析度 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| COCO | COCO 預訓練 | 0.596 | 0.370 | 0.469 | 0.509 | 0.722 | 0.425 | **0.515** | 640 |
+| COCO | VisDrone 微調 | 0.061 | 0.030 | 0.126 | 0.012 | 0.031 | 0.035 | **0.049** | 640 |
+| COCO | VisDrone 微調 | 0.069 | 0.021 | 0.129 | 0.012 | 0.055 | 0.035 | **0.053** | 1024 |
+| VisDrone | COCO 預訓練 | 0.092 | 0.030 | 0.323 | 0.032 | 0.142 | 0.083 | **0.117** | 1024 |
+| VisDrone | VisDrone 微調 | 0.163 | 0.082 | 0.543 | 0.177 | 0.439 | 0.300 | **0.284** | 1024 |
+
+- **微調讓模型適應空拍視角**：VisDrone 上 6 類 mAP50 從 0.206 提升到 0.487；機車從 0.093 提升到 0.415，約 4.5 倍。
+- **代價是忘掉平視視角**：同一個微調模型在 COCO 上從 0.719 掉到 0.093。提高評估解析度到 1024 幾乎沒有幫助（0.103），問題在視角和物體大小，不在解析度。這就是「災難性遺忘」。
+- **實際使用的建議**：無人機、高處俯拍的畫面用 YOLO26s-visdrone；路口監視器、行車記錄器等平視畫面用 YOLO26s 等一般模型。
+- 評估流程檢查：同樣的流程下，預訓練模型在 COCO 完整 80 類的 mAP50-95 為 0.480，和官方公布的 48.6 相差不到 1 點（官方使用 pycocotools 計分，算法略有不同）。
+- VisDrone 測試集的分數明顯低於驗證集（10 類 mAP50：test 0.404、val 0.499），這是 VisDrone 常見的現象，test-dev 的場景比較難。
+
+完整數字見 [reports/visdrone-yolo26s-test.md](reports/visdrone-yolo26s-test.md)、[reports/crossdomain.md](reports/crossdomain.md)；驗證集的結果在 [reports/visdrone-yolo26s-val.md](reports/visdrone-yolo26s-val.md)。
 
 > 註：YOLO26 預設評估時使用一對多偵測頭加 NMS；改用免 NMS 的端到端模式（`nms=False`）時，測試集 mAP50 為 0.394。
 
-訓練完成後，最佳權重會複製到 `weights/custom/`，App 的模型選單會自動出現「微調：…」選項。也可以換成自己的資料集：`--data path/to/data.yaml`，格式請參考 [Ultralytics 資料集格式](https://docs.ultralytics.com/datasets/detect/)。
+**依 VisDrone 官方規則重算**：Ultralytics 的資料集轉換腳本會直接刪掉「忽略區域」（類別 0）和 others（類別 11），所以上面的分數裡，落在忽略區域內的預測都被算成誤報。`training.visdrone_eval` 依照 [VisDrone 官方評估工具](https://github.com/VisDrone/VisDrone2018-DET-toolkit)的規則重算：
+
+- 面積一半以上落在忽略區域內的標註和預測都不計分（同 `dropObjectsInIgr.m`）。test-dev 有 2,180 個忽略區域，排除了 414 個標註（0.6%）和約 4.4% 的預測。
+- others 不屬於 10 個評估類別，官方工具實際上也不會計到它；截斷程度不影響計分，標註裡也沒有截斷超過 50% 的物件。
+- 官方計分方式：每張圖最多 500 個框，信心分數高的先配對，以 VOC 方式計算 AP。
+
+| 模型 / 推論解析度 | Ultralytics 計分 | + 忽略區域 | 官方計分 + 忽略區域 |
+| --- | --- | --- | --- |
+| YOLO26s-visdrone / 1024 | 0.405 | 0.412 | **0.412** |
+| YOLO26s-visdrone / 1536 | 0.440 | 0.447 | **0.447** |
+| OBB 起點 / 1024 | 0.408 | 0.415 | **0.415** |
+
+（test-dev，10 類 mAP50。三種分數來自同一組預測；Ultralytics 計分這欄改成每張圖最多 500 個框，所以和上面的 0.404 差 0.001。）
+
+- 忽略區域讓 mAP50 提高約 0.007（mAP50-95 約 0.003），提高最多的是機車（+0.021）、行人（+0.011）、腳踏車（+0.010）、人（+0.009）這些小而密集的類別，汽車、公車幾乎不變。
+- 兩種計分方式的結果幾乎相同（差距 ≤ 0.001），真正有影響的只有忽略區域。
+- 所有模型提高的幅度都差不多，所以本 README 其他比較的結論不變；要和論文或競賽的數字比較，請用最後一欄。
+- 推論解析度提高到 1536 不用重新訓練就能多 0.035，原因是 VisDrone 原圖寬 1360～2000 px，用 1024 推論等於先把圖縮小，小物體受影響最大。
+
+完整數字見 [reports/visdrone-yolo26s-test-official.md](reports/visdrone-yolo26s-test-official.md)。
+
+**起始權重的影響**：DOTA 是空拍影像，直覺上比 COCO 更接近 VisDrone，所以另外試了從 OBB 權重（`yolo26s-obb.pt`）開始微調：架構和其他設定完全相同，只換起始權重。backbone 和 neck 全部沿用，偵測頭只有類別輸出層重新學習（共轉移 696 / 708 個參數張量）。
+
+```bash
+python -m training.finetune --init yolo26s-obb.pt
+```
+
+| 起始權重 | 預訓練來源 | 最佳 epoch | test mAP50 | test mAP50-95 | val mAP50 |
+| --- | --- | --- | --- | --- | --- |
+| `yolo26s.pt` | COCO | 40 | 0.404 | 0.235 | 0.510 |
+| `yolo26s-obb.pt` | Objects365 → DOTA | 41 | 0.408 | 0.237 | 0.503 |
+
+- 差距都在 0.01 以內，而且方向不一致：test 上 OBB 起點略好，val 上 COCO 起點略好。只訓練一次無法排除隨機誤差，結論是**打平**；收斂速度也幾乎相同（最佳 epoch 40 vs 41）。
+- 各類別互有高低：三輪車（0.257 → 0.291）、卡車（0.457 → 0.477）較好，腳踏車（0.190 → 0.177）、公車（0.619 → 0.605）較差。
+- 推測原因：VisDrone 訓練集有 6,471 張、34 萬個標註，資料量夠大，微調後起始權重的差異幾乎被抹平；DOTA 多為衛星與航拍影像，拍攝高度比無人機高得多，視角仍有差距。
+- 從 checkpoint 記錄的訓練參數看，Ultralytics 的 OBB 模型是先在 Objects365 上預訓練，再用 DOTA 訓練 50 個 epoch，所以這組比較同時換了預訓練資料集，不是單純的「COCO vs DOTA」。
+
+App 的空拍模型維持 COCO 起點的版本。完整數字見 [reports/visdrone-yolo26s-obb-test.md](reports/visdrone-yolo26s-obb-test.md)、[reports/comparison-test.md](reports/comparison-test.md)。
+
+訓練完成後，最佳權重會複製到 `weights/custom/`，App 的模型選單會自動出現對應選項，名稱由基礎模型和資料集組成，例如「YOLO26s-visdrone（空拍 / 俯視）」。也可以換成自己的資料集：`--data path/to/data.yaml`，格式請參考 [Ultralytics 資料集格式](https://docs.ultralytics.com/datasets/detect/)。
 
 ## 專案結構
 
@@ -91,7 +152,8 @@ training/
   finetune.py           微調
   evaluate.py           官方驗證器評估報告
   compare.py            多個模型的評估報告比較表
-  zeroshot.py           COCO 預訓練與微調模型的共同類別比較
+  crossdomain.py        COCO / VisDrone 跨資料集比較（預訓練 vs 微調）
+  visdrone_eval.py      依 VisDrone 官方規則評估（忽略區域、官方計分）
 reports/                評估報告
 tests/                  單元測試（不需要 GPU 或模型權重）
 ```

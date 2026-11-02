@@ -8,17 +8,6 @@ import pandas as pd
 DETECTION_COLUMNS = ["class_id", "class_name", "conf", "x", "y", "w", "h"]
 
 
-def result_boxes(result):
-    """一般模型的結果在 .boxes，OBB（旋轉框）模型在 .obb。"""
-    return result.boxes if result.boxes is not None else result.obb
-
-
-def box_xywh(boxes) -> np.ndarray:
-    """框的中心點與寬高；OBB 取 xywhr 的前四欄（忽略旋轉角）。"""
-    xywh = boxes.xywh if hasattr(boxes, "xywh") else boxes.xywhr[:, :4]
-    return xywh.cpu().numpy()
-
-
 def detect_image(
     model,
     image_bgr: np.ndarray,
@@ -32,10 +21,10 @@ def detect_image(
     annotated = result.plot()[:, :, ::-1]
 
     rows = []
-    boxes = result_boxes(result)
+    boxes = result.boxes
     if boxes is not None and len(boxes):
         for (x, y, w, h), c, p in zip(
-            box_xywh(boxes),
+            boxes.xywh.cpu().numpy(),
             boxes.cls.int().cpu().tolist(),
             boxes.conf.cpu().numpy(),
             strict=True,

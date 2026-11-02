@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 Point = tuple[float, float]
@@ -44,6 +45,14 @@ class LineCounter:
     @property
     def total(self) -> int:
         return self.count_in + self.count_out
+
+    def in_normal(self) -> Point | None:
+        """垂直於計數線、指向 IN 一側的單位向量；起點和終點重疊時回傳 None。"""
+        dx, dy = self.end[0] - self.start[0], self.end[1] - self.start[1]
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return None
+        return (-dy / length, dx / length)
 
     def update(self, track_id: int, point: Point) -> str | None:
         """更新物件位置；若這一步跨越了計數線，回傳 "in" 或 "out"。"""
