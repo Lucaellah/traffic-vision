@@ -52,6 +52,19 @@ def category_ids(names: dict[int, str], categories: list[str]) -> list[int]:
     return sorted(i for i, n in names.items() if n in wanted)
 
 
+# 分析用的類別分組
+HEAVY_CATEGORIES = ["公車", "卡車"]  # 大型車
+VRU_CATEGORIES = ["人", "腳踏車", "機車"]  # 弱勢用路人（vulnerable road users）
+
+
+def category_of(name: str) -> str:
+    """模型類別名稱對應到的統一類別；不在選單裡的沿用原名稱。"""
+    for category, names in CATEGORIES.items():
+        if name in names:
+            return category
+    return name
+
+
 def display_name(name: str) -> str:
     """回傳「中文 (english)」格式的顯示名稱。"""
     zh = ZH_NAMES.get(name)

@@ -27,6 +27,13 @@ def segments_intersect(p1: Point, p2: Point, q1: Point, q2: Point) -> bool:
 
 
 @dataclass
+class Crossing:
+    track_id: int
+    direction: str  # "in" 或 "out"
+    time_s: float | None  # 依前後兩點離線的距離內插出的越線時間
+
+
+@dataclass
 class LineCounter:
     """計數線，每個 track id 只計數一次。
 
@@ -40,7 +47,8 @@ class LineCounter:
     count_in: int = 0
     count_out: int = 0
     crossed: dict[int, str] = field(default_factory=dict)
-    _last: dict[int, Point] = field(default_factory=dict, repr=False)
+    crossings: list[Crossing] = field(default_factory=list)
+    _last: dict[int, tuple[Point, float | None]] = field(default_factory=dict, repr=False)
 
     @property
     def total(self) -> int:
@@ -54,20 +62,28 @@ class LineCounter:
             return None
         return (-dy / length, dx / length)
 
-    def update(self, track_id: int, point: Point) -> str | None:
+    def update(self, track_id: int, point: Point, time_s: float | None = None) -> str | None:
         """更新物件位置；若這一步跨越了計數線，回傳 "in" 或 "out"。"""
         # 剛好落在線上的點不當作「上一步位置」，避免跨線時被拆成兩段而漏算
-        if orient(self.start, self.end, point) == 0:
+        side = orient(self.start, self.end, point)
+        if side == 0:
             return None
-        prev = self._last.get(track_id)
-        self._last[track_id] = point
-        if prev is None or track_id in self.crossed:
+        last = self._last.get(track_id)
+        self._last[track_id] = (point, time_s)
+        if last is None or track_id in self.crossed:
             return None
+        prev, prev_t = last
         if not segments_intersect(prev, point, self.start, self.end):
             return None
 
-        direction = "in" if orient(self.start, self.end, prev) < 0 else "out"
+        prev_side = orient(self.start, self.end, prev)
+        direction = "in" if prev_side < 0 else "out"
         self.crossed[track_id] = direction
+        t = None
+        if time_s is not None and prev_t is not None:
+            # 外積和到線的距離成正比，所以可以直接拿來算跨線點在這一步的比例
+            t = prev_t + (time_s - prev_t) * abs(prev_side) / (abs(prev_side) + abs(side))
+        self.crossings.append(Crossing(track_id, direction, t))
         if direction == "in":
             self.count_in += 1
         else:

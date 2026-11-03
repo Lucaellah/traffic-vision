@@ -8,3 +8,7 @@ gatherUsageStats = false
 
 [theme]
 primaryColor = "#f59e0b"
+
+[global]
+# 換頁時保留元件設定的做法（views/common.py 的 keep_widget_state）會觸發這個提醒，屬於預期行為
+disableWidgetStateDuplicationWarning = true

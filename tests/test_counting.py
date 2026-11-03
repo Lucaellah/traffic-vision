@@ -65,3 +65,19 @@ def test_in_normal_points_to_in_side():
 
 def test_in_normal_degenerate_line():
     assert LineCounter((10, 10), (10, 10)).in_normal() is None
+
+
+def test_crossing_time_interpolated():
+    c = LineCounter(*H_LINE)
+    c.update(1, (50, 90), time_s=1.0)
+    c.update(1, (50, 130), time_s=2.0)  # 線在這一步的 1/4 處
+    (crossing,) = c.crossings
+    assert (crossing.track_id, crossing.direction) == (1, "in")
+    assert crossing.time_s == 1.25
+
+
+def test_crossing_time_none_without_times():
+    c = LineCounter(*H_LINE)
+    c.update(1, (50, 90))
+    c.update(1, (50, 130))
+    assert c.crossings[0].time_s is None

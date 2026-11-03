@@ -2,7 +2,10 @@
 
 import streamlit as st
 
+from views.common import keep_widget_state
+
 st.set_page_config(page_title="Traffic Vision", page_icon=":material/traffic:", layout="wide")
+keep_widget_state()
 
 pages = [
     st.Page("views/home.py", title="首頁", icon=":material/home:", default=True),

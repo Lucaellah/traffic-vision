@@ -36,6 +36,40 @@ def save_upload(upload) -> Path:
     return path
 
 
+# key 以 KEEP 開頭的元件，換頁後回來會保留原本的設定
+KEEP = "keep_"
+
+
+def keep_widget_state() -> None:
+    """Streamlit 換頁時會清掉這次沒有顯示的元件狀態。
+
+    每次執行前把這些值重新存一次，它們就會保留到重新整理網頁為止。
+    """
+    for k in list(st.session_state):
+        if isinstance(k, str) and k.startswith(KEEP):
+            st.session_state[k] = st.session_state[k]
+
+
+@dataclass
+class KeptFile:
+    path: Path
+    name: str
+    file_id: str
+
+
+def kept_upload(label: str, types: list[str], key: str) -> KeptFile | None:
+    """上傳元件換頁後會變空，所以把檔案記在 session 裡，回來時沿用，直到上傳新檔或重新整理網頁。"""
+    upload = st.file_uploader(label, type=types, key=f"{key}_uploader")
+    store = f"{key}_file"
+    kept: KeptFile | None = st.session_state.get(store)
+    if upload is not None and (kept is None or kept.file_id != upload.file_id):
+        kept = KeptFile(save_upload(upload), upload.name, upload.file_id)
+        st.session_state[store] = kept
+    if kept and upload is None:
+        st.caption(f"目前使用：**{kept.name}**（上傳新檔案即可替換）")
+    return kept
+
+
 @dataclass
 class ModelParams:
     model_file: str
@@ -52,25 +86,25 @@ def model_params(key: str, *, default_traffic: bool = True) -> ModelParams:
         models = available_models()
         names = list(models)
         label = st.selectbox("模型", names, index=names.index(DEFAULT_MODEL),
-                             key=f"{key}_model",
+                             key=f"{KEEP}{key}_model",
                              help="無人機、高處俯拍的畫面請選「空拍 / 俯視」模型，"
                                   "其他畫面選一般模型")
         model_file = models[label]
-        conf = st.slider("信心門檻 conf", 0.05, 0.95, 0.25, 0.05, key=f"{key}_conf",
+        conf = st.slider("信心門檻 conf", 0.05, 0.95, 0.25, 0.05, key=f"{KEEP}{key}_conf",
                          help="越低偵測到的物件越多，但誤判也會增加")
-        iou = st.slider("NMS IoU", 0.1, 0.95, 0.7, 0.05, key=f"{key}_iou",
+        iou = st.slider("NMS IoU", 0.1, 0.95, 0.7, 0.05, key=f"{KEEP}{key}_iou",
                         help="重疊框的合併門檻")
 
         model = cached_model(model_file)
         auto = default_imgsz(model)
         imgsz = st.selectbox(
-            "推論解析度", [None, *IMGSZ_OPTIONS], key=f"{key}_imgsz",
+            "推論解析度", [None, *IMGSZ_OPTIONS], key=f"{KEEP}{key}_imgsz",
             format_func=lambda s: f"自動（{auto}）" if s is None else str(s),
             help="一般用「自動」即可；空拍畫面建議 1536。越大越能抓到小物體，但速度越慢")
 
         picked = st.multiselect("只偵測這些類別（留空 = 全部）", list(CATEGORIES),
                                 default=TRAFFIC_CATEGORIES if default_traffic else [],
-                                key=f"{key}_classes")
+                                key=f"{KEEP}{key}_classes")
         classes = category_ids(model.names, picked) if picked else None
         missing = [c for c in picked if not category_ids(model.names, [c])]
         if missing:

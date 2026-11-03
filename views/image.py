@@ -4,17 +4,17 @@ import numpy as np
 import streamlit as st
 
 from traffic_vision.detection import detect_image
-from views.common import cached_model, download_table, model_params
+from views.common import cached_model, download_table, kept_upload, model_params
 
 st.title(":material/image_search: 影像偵測")
 params = model_params("image", default_traffic=False)
 
-upload = st.file_uploader("上傳圖片", type=["jpg", "jpeg", "png", "bmp", "webp"])
+upload = kept_upload("上傳圖片", ["jpg", "jpeg", "png", "bmp", "webp"], "image")
 if upload is None:
     st.caption("支援 JPG、PNG、BMP、WebP。")
     st.stop()
 
-image = cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+image = cv2.imdecode(np.fromfile(upload.path, np.uint8), cv2.IMREAD_COLOR)
 if image is None:
     st.error("無法讀取這張圖片，請確認檔案格式。")
     st.stop()
