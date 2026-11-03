@@ -5,7 +5,7 @@ from traffic_vision import analytics
 from traffic_vision.labels import display_name
 from views.common import download_table
 
-st.title("📊 資料分析")
+st.title(":material/bar_chart: 資料分析")
 
 sources = ["上傳 CSV / Excel"]
 if "tracks" in st.session_state:
@@ -54,7 +54,7 @@ with tab_overview:
     c1, c2 = st.columns([3, 2])
     c1.plotly_chart(
         px.bar(counts, x="label", y="count", labels={"label": "類別", "count": "物件數"},
-               text_auto=True),
+               text_auto=True).update_xaxes(tickangle=0),
         width="stretch",
     )
     c2.plotly_chart(px.pie(counts, names="label", values="count", hole=0.4), width="stretch")

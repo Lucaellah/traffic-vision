@@ -15,9 +15,15 @@ def detect_image(
     conf: float = 0.25,
     iou: float = 0.7,
     classes: list[int] | None = None,
+    imgsz: int | None = None,
 ) -> tuple[np.ndarray, pd.DataFrame]:
-    """回傳（標註後的 RGB 影像, 偵測結果表）。x、y 為框的中心點。"""
-    result = model.predict(image_bgr, conf=conf, iou=iou, classes=classes, verbose=False)[0]
+    """回傳（標註後的 RGB 影像, 偵測結果表）。x、y 為框的中心點。
+
+    imgsz 為 None 時沿用模型訓練時的解析度。
+    """
+    size = {"imgsz": imgsz} if imgsz else {}
+    result = model.predict(image_bgr, conf=conf, iou=iou, classes=classes, verbose=False,
+                           **size)[0]
     annotated = result.plot()[:, :, ::-1]
 
     rows = []

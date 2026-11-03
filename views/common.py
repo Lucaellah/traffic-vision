@@ -8,8 +8,14 @@ from pathlib import Path
 
 import streamlit as st
 
-from traffic_vision.labels import TRAFFIC_CLASSES, display_name
-from traffic_vision.models import DEFAULT_MODEL, available_models, load_model
+from traffic_vision.labels import CATEGORIES, TRAFFIC_CATEGORIES, category_ids
+from traffic_vision.models import (
+    DEFAULT_MODEL,
+    IMGSZ_OPTIONS,
+    available_models,
+    default_imgsz,
+    load_model,
+)
 
 
 @st.cache_resource(show_spinner="載入模型中（第一次使用會自動下載權重）…")
@@ -36,6 +42,7 @@ class ModelParams:
     conf: float
     iou: float
     classes: list[int] | None
+    imgsz: int | None  # None：沿用模型訓練時的解析度
 
 
 def model_params(key: str, *, default_traffic: bool = True) -> ModelParams:
@@ -54,14 +61,21 @@ def model_params(key: str, *, default_traffic: bool = True) -> ModelParams:
         iou = st.slider("NMS IoU", 0.1, 0.95, 0.7, 0.05, key=f"{key}_iou",
                         help="重疊框的合併門檻")
 
-        names = cached_model(model_file).names
-        name_to_id = {n: i for i, n in names.items()}
-        default = [n for n in TRAFFIC_CLASSES if n in name_to_id] if default_traffic else []
-        picked = st.multiselect("只偵測這些類別（留空 = 全部）", list(name_to_id),
-                                default=default, format_func=display_name,
-                                key=f"{key}_classes_{model_file}")  # 換模型時類別清單也不同
-    classes = [name_to_id[n] for n in picked] or None
-    return ModelParams(model_file, conf, iou, classes)
+        model = cached_model(model_file)
+        auto = default_imgsz(model)
+        imgsz = st.selectbox(
+            "推論解析度", [None, *IMGSZ_OPTIONS], key=f"{key}_imgsz",
+            format_func=lambda s: f"自動（{auto}）" if s is None else str(s),
+            help="一般用「自動」即可；空拍畫面建議 1536。越大越能抓到小物體，但速度越慢")
+
+        picked = st.multiselect("只偵測這些類別（留空 = 全部）", list(CATEGORIES),
+                                default=TRAFFIC_CATEGORIES if default_traffic else [],
+                                key=f"{key}_classes")
+        classes = category_ids(model.names, picked) if picked else None
+        missing = [c for c in picked if not category_ids(model.names, [c])]
+        if missing:
+            st.caption(f"這個模型沒有：{'、'.join(missing)}")
+    return ModelParams(model_file, conf, iou, classes, imgsz)
 
 
 def download_table(df, stem: str, key: str) -> None:

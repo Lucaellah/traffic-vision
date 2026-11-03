@@ -16,13 +16,18 @@ BUILTIN = {
 def prepare(data: str) -> Path:
     """回傳可以直接傳給 YOLO.train(data=...) 的 yaml 路徑；資料不存在時會自動下載。
 
-    data 可以是內建簡稱（visdrone），或是自己準備的 YOLO 格式 yaml。
+    data 可以是內建簡稱（visdrone、idd），或是自己準備的 YOLO 格式 yaml。
     內建資料集會下載到專案的 datasets/，而不是 ultralytics 的全域資料夾。
     """
     from ultralytics.data.utils import check_det_dataset
     from ultralytics.utils import YAML
     from ultralytics.utils.checks import check_yaml
 
+    if data.lower() == "idd":  # 需要先自行下載（要註冊），見 training/idd.py
+        from training.idd import convert
+
+        out = DATASETS_DIR / "idd.yaml"
+        return out if out.exists() else convert()
     if data.lower() not in BUILTIN:
         check_det_dataset(data)
         return Path(data)

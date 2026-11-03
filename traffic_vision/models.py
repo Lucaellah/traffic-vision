@@ -17,8 +17,11 @@ MODELS = {
 # 選單預設：適用最廣的一般模型
 DEFAULT_MODEL = "YOLO26s（平衡）"
 
+# 推論解析度選項（輸入影像的長邊）；越大越能抓到小物體，但越慢
+IMGSZ_OPTIONS = [640, 1024, 1280, 1536]
+
 # 微調資料集的適用場景，顯示在選單名稱裡
-DATASET_HINTS = {"visdrone": "空拍 / 俯視"}
+DATASET_HINTS = {"visdrone": "空拍 / 俯視", "idd": "平視 / 行車"}
 
 WEIGHTS_DIR = Path(
     os.environ.get("TRAFFIC_VISION_WEIGHTS", Path(__file__).resolve().parent.parent / "weights")
@@ -65,3 +68,8 @@ def load_model(filename: str):
     # 關閉 Ultralytics 的匿名使用統計（預設開啟），只影響這個行程，不改全域設定
     events.enabled = False
     return YOLO(str(weights_path(filename)))
+
+
+def default_imgsz(model) -> int:
+    """模型訓練時的解析度（未指定 imgsz 時 Ultralytics 會沿用它）。"""
+    return int(model.overrides.get("imgsz", 640))

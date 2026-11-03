@@ -22,13 +22,34 @@ ZH_NAMES = {
     "tricycle": "三輪車",
     "awning-tricycle": "有篷三輪車",
     "motor": "機車",
+    # IDD（微調模型）
+    "rider": "騎士",
+    "autorickshaw": "電動三輪車",
+    "vehicle fallback": "其他車輛",
+    "animal": "動物",
+    "traffic sign": "交通標誌",
 }
 
-# 交通分析預設關注的類別（不存在於目前模型的會被略過）
-TRAFFIC_CLASSES = [
-    "person", "bicycle", "car", "motorcycle", "bus", "truck",
-    "pedestrian", "van", "tricycle", "awning-tricycle", "motor",
-]
+# 統一的類別選單：不管選哪個模型，側邊欄都顯示同一組類別，再對應到模型自己的類別名稱
+CATEGORIES = {
+    "人": ["person", "pedestrian", "people", "rider"],
+    "腳踏車": ["bicycle"],
+    "機車": ["motorcycle", "motor"],
+    "汽車": ["car", "van"],
+    "公車": ["bus"],
+    "卡車": ["truck"],
+    "三輪車": ["tricycle", "awning-tricycle", "autorickshaw"],
+    "其他車輛": ["vehicle fallback"],
+    "紅綠燈": ["traffic light"],
+}
+# 影片頁預設勾選的類別
+TRAFFIC_CATEGORIES = ["人", "腳踏車", "機車", "汽車", "公車", "卡車", "三輪車", "其他車輛"]
+
+
+def category_ids(names: dict[int, str], categories: list[str]) -> list[int]:
+    """把統一類別換成模型的類別編號；模型沒有的類別直接略過。"""
+    wanted = {n for c in categories for n in CATEGORIES[c]}
+    return sorted(i for i, n in names.items() if n in wanted)
 
 
 def display_name(name: str) -> str:

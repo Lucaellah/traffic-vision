@@ -1,9 +1,11 @@
-"""跨資料集比較：COCO 預訓練與 VisDrone 微調模型，分別在 COCO 和 VisDrone 上評估。
+"""跨資料集比較：COCO 預訓練與 VisDrone / IDD 微調模型，分別在 COCO、VisDrone、IDD 上評估。
 
-兩個資料集的類別不同，只比共同的 6 類（person、bicycle、car、motorcycle、bus、truck）：
+各資料集的類別不同，只比共同的 6 類（person、bicycle、car、motorcycle、bus、truck）：
 - VisDrone 標註換成 COCO 類別編號：行人 + 人（非行走）→ person、汽車 + 廂型車 → car，
   三輪車、有篷三輪車在 COCO 沒有對應，捨棄。
-- VisDrone 微調模型的預測用同一張對照表轉成 COCO 編號。
+- IDD 標註：行人 + 騎士 → person（COCO 的 person 包含騎車的人），
+  電動三輪車、其他車輛、動物、號誌在 COCO 沒有對應或不屬於 6 類，捨棄。
+- 微調模型的預測用同一張對照表轉成 COCO 編號。
 - COCO 標註不必過濾：AP 是逐類別計算的，直接取這 6 類的 AP 再平均。
 
 評估一律使用 Ultralytics 官方 model.val()。另外會用預訓練模型跑一次完整 80 類的 COCO 評估，
@@ -11,12 +13,15 @@
 
 範例：
     python -m training.crossdomain
+    python -m training.crossdomain --idd custom/idd-yolo26s.pt
+    python -m training.crossdomain --datasets IDD --out reports/idd-zeroshot.md
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -25,10 +30,12 @@ from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import ASSETS_URL, ROOT, YAML
 from ultralytics.utils.downloads import download
 
-from traffic_vision.models import load_model
+from traffic_vision.models import default_imgsz, load_model
 from training.datasets import DATASETS_DIR, PROJECT_DIR, prepare
 
-VISDRONE_TO_COCO = {
+# 各資料集類別 → COCO 類別；兩個資料集同名的類別對應相同，所以合成一張表
+TO_COCO = {
+    # VisDrone
     "pedestrian": "person",
     "people": "person",
     "bicycle": "bicycle",
@@ -37,10 +44,14 @@ VISDRONE_TO_COCO = {
     "motor": "motorcycle",
     "bus": "bus",
     "truck": "truck",
+    # IDD
+    "person": "person",
+    "rider": "person",
+    "motorcycle": "motorcycle",
 }
 COCO_NAMES: dict[int, str] = YAML.load(ROOT / "cfg/datasets/coco.yaml")["names"]
 COCO_IDS = {name: i for i, name in COCO_NAMES.items()}
-SHARED = sorted({COCO_IDS[n] for n in VISDRONE_TO_COCO.values()})
+SHARED = sorted({COCO_IDS[n] for n in TO_COCO.values()})
 ZH = {"person": "人", "bicycle": "腳踏車", "car": "汽車", "motorcycle": "機車", "bus": "公車",
       "truck": "卡車"}
 
@@ -49,10 +60,15 @@ EXPERIMENTS = [
     ("COCO", "pretrained", 640),
     ("COCO", "finetuned", 640),
     ("COCO", "finetuned", 1024),
+    ("COCO", "idd", 640),
     ("VisDrone", "pretrained", 1024),
     ("VisDrone", "finetuned", 1024),
+    ("VisDrone", "idd", 1024),
+    ("IDD", "pretrained", 1024),
+    ("IDD", "finetuned", 1024),
+    ("IDD", "idd", 1024),
 ]
-KIND = {"pretrained": "COCO 預訓練", "finetuned": "VisDrone 微調"}
+KIND = {"pretrained": "COCO 預訓練", "finetuned": "VisDrone 微調", "idd": "IDD 微調"}
 
 
 def coco_val() -> Path:
@@ -67,17 +83,17 @@ def coco_val() -> Path:
     return data
 
 
-def visdrone_as_coco(split: str) -> Path:
-    """把 VisDrone 的 split 轉成 COCO 類別編號，回傳 data yaml。"""
-    src_yaml = YAML.load(prepare("visdrone"))
+def as_coco(dataset: str, split: str) -> Path:
+    """把 VisDrone / IDD 的 split 轉成 COCO 類別編號，回傳 data yaml。"""
+    src_yaml = YAML.load(prepare(dataset))
     src = Path(src_yaml["path"])
-    lut = {i: COCO_IDS.get(VISDRONE_TO_COCO.get(n, ""), -1) for i, n in src_yaml["names"].items()}
-    out = DATASETS_DIR / "visdrone-coco"
+    lut = {i: COCO_IDS.get(TO_COCO.get(n, ""), -1) for i, n in src_yaml["names"].items()}
+    out = DATASETS_DIR / f"{dataset}-coco"
 
     images = out / "images" / split
     if not images.exists():
-        # 必須複製而不是建立符號連結：ultralytics 會解析連結，改讀原本的 VisDrone 標註
-        shutil.copytree(src / "images" / split, images)
+        # 用硬連結（或複製）而不是符號連結：ultralytics 會解析連結，改讀原本的標註
+        shutil.copytree(src / "images" / split, images, copy_function=os.link)
     labels = out / "labels" / split
     labels.mkdir(parents=True, exist_ok=True)
     for f in (src / "labels" / split).glob("*.txt"):
@@ -96,8 +112,8 @@ def visdrone_as_coco(split: str) -> Path:
 
 
 def remap_validator(names: dict[int, str]) -> type[DetectionValidator]:
-    """把 VisDrone 模型的預測類別轉成 COCO 編號，沒有對應的類別直接丟掉。"""
-    lut = torch.tensor([COCO_IDS.get(VISDRONE_TO_COCO.get(names[i], ""), -1)
+    """把微調模型的預測類別轉成 COCO 編號，沒有對應的類別直接丟掉。"""
+    lut = torch.tensor([COCO_IDS.get(TO_COCO.get(names[i], ""), -1)
                         for i in range(len(names))])
 
     class RemapValidator(DetectionValidator):
@@ -152,46 +168,62 @@ def table(results: list[dict], metric: str, title: str) -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="COCO / VisDrone 跨資料集比較（共同 6 類）")
+    parser = argparse.ArgumentParser(description="COCO / VisDrone / IDD 跨資料集比較（共同 6 類）")
     parser.add_argument("--pretrained", default="yolo26s.pt")
-    parser.add_argument("--finetuned", default="custom/visdrone-yolo26s.pt")
+    parser.add_argument("--finetuned", default="custom/visdrone-yolo26s.pt", help="VisDrone 微調")
+    parser.add_argument("--idd", default=None, help="IDD 微調；不給就略過這個模型")
+    parser.add_argument("--datasets", nargs="+", default=["COCO", "VisDrone", "IDD"],
+                        choices=["COCO", "VisDrone", "IDD"])
     parser.add_argument("--visdrone-split", default="test")
+    parser.add_argument("--idd-split", default="test")
     parser.add_argument("--out", default=str(PROJECT_DIR / "reports" / "crossdomain.md"))
     args = parser.parse_args()
 
-    data = {"COCO": str(coco_val()), "VisDrone": str(visdrone_as_coco(args.visdrone_split))}
-    weights = {"pretrained": args.pretrained, "finetuned": args.finetuned}
+    weights = {"pretrained": args.pretrained, "finetuned": args.finetuned, "idd": args.idd}
+    experiments = [e for e in EXPERIMENTS if e[0] in args.datasets and weights[e[1]]]
+    data = {}
+    if "COCO" in args.datasets:
+        data["COCO"] = str(coco_val())
+    if "VisDrone" in args.datasets:
+        data["VisDrone"] = str(as_coco("visdrone", args.visdrone_split))
+    if "IDD" in args.datasets:
+        data["IDD"] = str(as_coco("idd", args.idd_split))
 
     # 檢查評估流程：預訓練模型在完整 80 類上的分數應接近官方公布的值
-    full = load_model(args.pretrained).val(data=data["COCO"], imgsz=640, plots=False,
-                                           verbose=False)
-    sanity = {"map50": float(full.box.map50), "map50_95": float(full.box.map)}
+    sanity = None
+    if "COCO" in data:
+        full = load_model(args.pretrained).val(data=data["COCO"], imgsz=640, plots=False,
+                                               verbose=False)
+        sanity = {"map50": float(full.box.map50), "map50_95": float(full.box.map)}
 
     results = []
-    for dataset, model, imgsz in EXPERIMENTS:
+    for dataset, model, imgsz in experiments:
         r = evaluate(weights[model], data[dataset], imgsz)
         results.append({"dataset": dataset, "model": model, "imgsz": imgsz, **r})
         print(f"{dataset} / {KIND[model]} / {imgsz}: mAP50 {r['map50']:.3f}, "
               f"mAP50-95 {r['map50_95']:.3f}")
 
+    trained = {k: default_imgsz(load_model(w)) for k, w in weights.items() if w}
     lines = [
         "# 跨資料集比較（YOLO26s，共同 6 類）",
         "",
-        f"- COCO：val2017（5,000 張）；VisDrone：{args.visdrone_split}；Ultralytics `model.val()`",
-        f"- 預訓練：`{args.pretrained}`（640 訓練）；"
-        f"微調：`{args.finetuned}`（VisDrone，1024 訓練）",
+        f"- 測試集：COCO val2017（5,000 張）、VisDrone {args.visdrone_split}、"
+        f"IDD {args.idd_split}（官方 val）；Ultralytics `model.val()`",
+        "- 模型：" + "；".join(f"{KIND[k]} `{w}`（{trained[k]} 訓練）"
+                              for k, w in weights.items() if w),
         "- VisDrone 標註：行人 + 人（非行走）合併為人，汽車 + 廂型車合併為汽車，三輪車兩類不計",
-        f"- 評估流程檢查：預訓練模型在 COCO 完整 80 類的 mAP50-95 為 {sanity['map50_95']:.3f}"
-        f"（mAP50 {sanity['map50']:.3f}）",
-        "",
-        *table(results, "ap50", "mAP50"),
-        *table(results, "ap50_95", "mAP50-95"),
+        "- IDD 標註：行人 + 騎士合併為人，電動三輪車、其他車輛等不計",
     ]
+    if sanity:
+        lines.append(f"- 評估流程檢查：預訓練模型在 COCO 完整 80 類的 mAP50-95 為 "
+                     f"{sanity['map50_95']:.3f}（mAP50 {sanity['map50']:.3f}）")
+    lines += ["", *table(results, "ap50", "mAP50"), *table(results, "ap50_95", "mAP50-95")]
     out = Path(args.out)
     out.parent.mkdir(exist_ok=True)
     out.write_text("\n".join(lines), encoding="utf-8")
-    report = {"visdrone_split": args.visdrone_split, "pretrained": args.pretrained,
-              "finetuned": args.finetuned, "coco_80_class": sanity, "results": results}
+    report = {"visdrone_split": args.visdrone_split, "idd_split": args.idd_split,
+              "weights": weights, "trained_imgsz": trained, "coco_80_class": sanity,
+              "results": results}
     out.with_suffix(".json").write_text(json.dumps(report, ensure_ascii=False, indent=2),
                                         encoding="utf-8")
     print("\n".join(lines))

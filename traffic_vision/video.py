@@ -148,6 +148,7 @@ def process_video(
     conf: float = 0.25,
     iou: float = 0.7,
     classes: list[int] | None = None,
+    imgsz: int | None = None,
     line: tuple[Point, Point] | None = None,
     max_frames: int | None = None,
     trail_length: int = 60,
@@ -157,7 +158,9 @@ def process_video(
     """逐幀追蹤物件，輸出標註影片並回傳每幀每個物件的位置紀錄。
 
     model 必須是這次處理專用的 YOLO 實例：追蹤器狀態存在 model 上。
+    imgsz 為 None 時沿用模型訓練時的解析度。
     """
+    size = {"imgsz": imgsz} if imgsz else {}
     info = probe(src)
     total = min(info.frames, max_frames) if max_frames else info.frames
     counter = LineCounter(*line) if line else None
@@ -174,7 +177,7 @@ def process_video(
                 break
             # 第一幀 persist=False 會重建追蹤器，確保不沿用上一支影片的 id
             result = model.track(frame, persist=idx > 0, conf=conf, iou=iou,
-                                 classes=classes, verbose=False)[0]
+                                 classes=classes, verbose=False, **size)[0]
             # 車多時標籤很容易蓋住畫面：縮小線寬、拿掉信心分數
             canvas = result.plot(conf=False, labels=show_labels, line_width=2)
             active: list[int] = []

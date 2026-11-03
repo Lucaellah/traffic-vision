@@ -7,7 +7,7 @@ from traffic_vision.models import load_model
 from traffic_vision.video import draw_line, probe, process_video, read_first_frame
 from views.common import download_table, model_params, save_upload, workdir
 
-st.title("🎞️ 影片追蹤與計數")
+st.title(":material/videocam: 影片追蹤與計數")
 params = model_params("video")
 
 upload = st.file_uploader("上傳影片", type=["mp4", "mov", "avi", "mkv", "webm"])
@@ -65,7 +65,8 @@ if st.button("開始分析", type="primary", width="stretch"):
     try:
         result = process_video(
             src, dst, load_model(params.model_file),
-            conf=params.conf, iou=params.iou, classes=params.classes, line=line,
+            conf=params.conf, iou=params.iou, classes=params.classes, imgsz=params.imgsz,
+            line=line,
             max_frames=int(seconds * info.fps), trail_length=trail,
             show_labels=show_labels, progress=on_progress,
         )
@@ -110,4 +111,4 @@ st.subheader("軌跡資料集")
 st.caption("每一列是某個物件在某一幀的位置（框中心點，像素座標）。")
 st.dataframe(tracks.round(3).head(500), width="stretch", hide_index=True)
 download_table(tracks, f"{st.session_state.video_name}_tracks", "video")
-st.page_link("views/analysis.py", label="用這份資料進行分析", icon="📊")
+st.page_link("views/analysis.py", label="用這份資料進行分析", icon=":material/bar_chart:")
