@@ -15,3 +15,6 @@ datasets/
 *.avi
 *.mov
 *.mkv
+
+# 收集的 CCTV 影片與官方資料
+data/
