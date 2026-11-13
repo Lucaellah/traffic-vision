@@ -1,7 +1,0 @@
-.venv
-.git
-weights
-runs
-__pycache__
-.pytest_cache
-.ruff_cache

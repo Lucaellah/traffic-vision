@@ -150,8 +150,6 @@ pip install -r requirements.txt
 streamlit run app.py        # http://localhost:8501
 ```
 
-Docker（CPU）：`docker build -t traffic-vision . && docker run --rm -p 8501:8501 traffic-vision`
-
 重現實驗：
 
 ```bash
@@ -168,7 +166,7 @@ python -m training.crossdomain          # 3×3 跨資料集比較
 traffic_vision/   核心邏輯：偵測、追蹤、越線計數、軌跡分析（不依賴 Streamlit，可直接在 notebook 使用）
 training/         資料集轉換、微調、評估（含 VisDrone 官方規則、跨資料集比較）
 views/, app.py    Streamlit 介面
-collector/        湖口 CCTV 與官方交通資料收集
+collector/        湖口 CCTV 定時錄影
 deploy/           systemd 服務與安裝腳本
 docs/, reports/   實驗紀錄、圖片、評估報告
 tests/            單元測試（不需要 GPU 或模型權重）

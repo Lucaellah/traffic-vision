@@ -1,5 +1,5 @@
 [server]
-# 只在本機監聽；Docker 內會用 --server.address=0.0.0.0 覆寫
+# 只在本機監聽；對外由 deploy/ 的 ngrok tunnel 轉送
 address = "localhost"
 maxUploadSize = 2048
 

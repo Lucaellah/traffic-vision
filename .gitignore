@@ -16,5 +16,8 @@ datasets/
 *.mov
 *.mkv
 
-# 收集的 CCTV 影片與官方資料
+# 收集的 CCTV 影片
 data/
+
+# 評估腳本另外輸出的原始數字，報告以 .md 為準
+reports/*.json
