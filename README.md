@@ -2,7 +2,7 @@
 
 **基於 YOLO26 的交通影像分析工具**
 
-🔗 **線上展示：<https://superhero-plow-headway.ngrok-free.dev>**（需要密碼，請來信索取；第一次開啟會出現 ngrok 提醒頁，按 Visit Site 進入）
+🔗 **線上展示：<https://superhero-plow-headway.ngrok-free.dev>**（需要密碼）
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![YOLO26](https://img.shields.io/badge/Ultralytics-YOLO26-111F68)
@@ -11,8 +11,7 @@
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
 <p align="center">
-  <img src="docs/images/demo-tracking.gif" width="720" alt="國道 CCTV 影片的多目標追蹤與雙向越線計數">
-  <br><sub>國道 1 號湖口 CCTV（約 5 fps，YOLO26m）：多目標追蹤與越線計數，橘線為軌跡</sub>
+  <img src="docs/images/app-home.png" width="720" alt="Traffic Vision App 首頁">
 </p>
 
 ## 問題定義
