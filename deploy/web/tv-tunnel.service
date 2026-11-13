@@ -1,0 +1,14 @@
+[Unit]
+Description=traffic-vision: ngrok tunnel to the web app (fixed URL)
+After=network-online.target tv-web.service
+Requires=tv-web.service
+
+[Service]
+# NGROK_DOMAIN 寫在 web.env；authtoken 由 ngrok config add-authtoken 存在 ~/.config/ngrok/ngrok.yml
+EnvironmentFile=%h/.config/traffic-vision/web.env
+ExecStart=%h/.local/bin/ngrok http --url=https://${NGROK_DOMAIN} --log=stdout 127.0.0.1:8502
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

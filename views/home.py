@@ -11,8 +11,8 @@ st.markdown(
 st.html("<style>.st-key-privacy [data-testid='stAlert'] { zoom: 0.7; }</style>")
 with st.container(key="privacy"):
     st.info(
-        "**所有資料都在你的電腦上處理。** 上傳的檔案只存在本機暫存資料夾，"
-        "不會傳送到任何外部伺服器（第一次使用某個模型時，只會下載公開的模型權重）。",
+        "**所有資料都在執行這個網站的主機上處理。** 上傳的檔案只存在主機的暫存資料夾"
+        "（一天後自動刪除），不會傳送到其他外部服務（第一次使用某個模型時，只會下載公開的模型權重）。",
         icon=":material/lock:",
     )
 
@@ -20,9 +20,9 @@ FEATURES = [
     ("views/image.py", ":material/image_search:", "影像偵測",
      "單張圖片的物件偵測或實例分割，可匯出偵測結果。"),
     ("views/video.py", ":material/videocam:", "影片追蹤與計數",
-     "多目標追蹤、軌跡繪製、自訂計數線的雙向越線計數。"),
+     "多目標追蹤、軌跡繪製、雙向越線計數與區間測速，低幀率 CCTV 也適用。"),
     ("views/analysis.py", ":material/bar_chart:", "資料分析",
-     "類別統計、位置熱力圖、單一物件軌跡與速度分析。"),
+     "固定攝影機看車流量、車種與車速；行車紀錄器看擁擠程度與前方接近事件。"),
 ]
 
 for col, (page, icon, title, desc) in zip(st.columns(3), FEATURES, strict=True):

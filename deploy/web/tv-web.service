@@ -1,0 +1,16 @@
+[Unit]
+Description=traffic-vision: Streamlit web app (GPU)
+After=network-online.target
+
+[Service]
+WorkingDirectory=__PROJECT_DIR__
+EnvironmentFile=%h/.config/traffic-vision/web.env
+# 只聽本機，對外由 tv-tunnel 轉送；上傳上限設 100 MB，避免占滿頻寬與磁碟
+ExecStart=__PROJECT_DIR__/.venv/bin/streamlit run app.py \
+    --server.address=127.0.0.1 --server.port=8502 --server.headless=true \
+    --server.maxUploadSize=100
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

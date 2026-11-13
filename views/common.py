@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import hmac
+import os
+import shutil
 import tempfile
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,16 +23,64 @@ from traffic_vision.models import (
 )
 
 
+def password_gate() -> None:
+    """有設定 TV_PASSWORD 環境變數時（部署到公開網址），要先輸入密碼才能使用。"""
+    password = os.environ.get("TV_PASSWORD")
+    if not password or st.session_state.get("authenticated"):
+        return
+    st.title(":material/traffic: Traffic Vision")
+    with st.form("login"):
+        entered = st.text_input("密碼", type="password")
+        if st.form_submit_button("進入", icon=":material/login:"):
+            if hmac.compare_digest(entered.encode(), password.encode()):
+                st.session_state.authenticated = True
+                st.rerun()
+            time.sleep(1)  # 拖慢暴力猜密碼
+            st.error("密碼錯誤")
+    st.stop()
+
+
+class LockedModel:
+    """模型會被所有使用者共用，但 Ultralytics 的 predict 不是 thread-safe，一次只讓一個請求推論。"""
+
+    def __init__(self, model):
+        self._model = model
+        self._lock = threading.Lock()
+
+    def predict(self, *args, **kwargs):
+        with self._lock:
+            return self._model.predict(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._model, name)
+
+
 @st.cache_resource(show_spinner="載入模型中（第一次使用會自動下載權重）…")
 def cached_model(filename: str):
-    return load_model(filename)
+    return LockedModel(load_model(filename))
+
+
+WORKDIR_PREFIX = "traffic-vision-"
+WORKDIR_MAX_AGE_S = 24 * 3600
 
 
 def workdir() -> Path:
-    """每個瀏覽器 session 一個暫存資料夾，上傳檔與輸出都放這裡，不會離開本機。"""
+    """每個瀏覽器 session 一個暫存資料夾，上傳檔與輸出都放這裡，不會離開執行網站的主機。"""
     if "workdir" not in st.session_state:
-        st.session_state.workdir = Path(tempfile.mkdtemp(prefix="traffic-vision-"))
+        remove_old_workdirs()
+        st.session_state.workdir = Path(tempfile.mkdtemp(prefix=WORKDIR_PREFIX))
     return st.session_state.workdir
+
+
+def remove_old_workdirs() -> None:
+    """Streamlit 沒有 session 結束的通知，改成建立新資料夾時順便清掉一天以前的。"""
+    cutoff = time.time() - WORKDIR_MAX_AGE_S
+    for d in Path(tempfile.gettempdir()).glob(f"{WORKDIR_PREFIX}*"):
+        try:
+            if d.is_dir() and d.stat().st_mtime < cutoff:
+                shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
 
 
 def save_upload(upload) -> Path:

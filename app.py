@@ -2,9 +2,10 @@
 
 import streamlit as st
 
-from views.common import keep_widget_state
+from views.common import keep_widget_state, password_gate
 
 st.set_page_config(page_title="Traffic Vision", page_icon=":material/traffic:", layout="wide")
+password_gate()
 keep_widget_state()
 
 pages = [
