@@ -16,11 +16,15 @@
 
 把既有的 CCTV、空拍與行車紀錄器影片，自動轉成交通調查數據：**分方向車流量、車速、車種組成、危險接近事件**。適用於交通量調查、號誌與路口改善評估、道路安全檢視，減少人工逐台計數的成本。
 
-## ⭐ 功能
+<div align="center">
+
+## 功能
+
+</div>
 
 Web 分成三個頁面，對應「單張影像 → 影片 → 數據分析」的流程。
 
-### 🖼️ 影像偵測
+### 影像偵測
 
 上傳一張圖片，偵測畫面中的車輛、機車、行人等物件，並和原圖並排顯示標註結果。除了一般的框選偵測，也可以切換成實例分割模型，把物件輪廓整塊上色，看得比框選更精細。頁面下方會統計各類別的數量，偵測明細（類別、信心分數、框座標）可以下載成 CSV 或 Excel。
 
@@ -28,7 +32,7 @@ Web 分成三個頁面，對應「單張影像 → 影片 → 數據分析」的
   <img src="docs/images/app-image.png" width="720" alt="影像偵測頁：原圖與偵測結果並排，下方為類別統計">
 </p>
 
-### 🎞️ 影片追蹤與計數
+### 影片追蹤與計數
 
 上傳影片後逐幀偵測，並為每個物件指定固定的 ID 持續追蹤，在影片上畫出移動軌跡。針對國道 CCTV 這類只有約 5 fps 的低幀率影片，追蹤器另外做了調整，不會因為車子一幀移動太多就跟丟。
 
@@ -40,7 +44,7 @@ Web 分成三個頁面，對應「單張影像 → 影片 → 數據分析」的
   <img src="docs/images/app-video.png" width="720" alt="影片追蹤與計數頁：計數線、IN 箭頭與車輛軌跡">
 </p>
 
-### 📊 資料分析
+### 資料分析
 
 讀入影片頁的追蹤結果（或上傳之前下載的 CSV / Excel），依拍攝方式產生不同的分析：
 
@@ -53,7 +57,7 @@ Web 分成三個頁面，對應「單張影像 → 影片 → 數據分析」的
   <img src="docs/images/app-analysis.png" width="720" alt="資料分析頁：越線車輛、換算流量、大型車比例與每 10 秒車流量圖">
 </p>
 
-### 🧠 模型選用
+### 模型選用
 
 三個頁面共用側邊欄的模型設定，類別選單會自動對應到各模型的類別名稱。
 
@@ -63,7 +67,7 @@ Web 分成三個頁面，對應「單張影像 → 影片 → 數據分析」的
 | YOLO26s-visdrone | 無人機、高處俯拍 |
 | YOLO26s-idd | 機車、騎士很多的平視街景 |
 
-## ⭐ 快速開始
+## 快速開始
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -72,7 +76,11 @@ pip install -r requirements.txt
 streamlit run app.py        # http://localhost:8501
 ```
 
+<div align="center">
+
 ## 技術細節
+
+</div>
 
 ### 1. 問題定義
 
@@ -185,8 +193,6 @@ tests/            單元測試（不需要 GPU 或模型權重）
 
 ## 來源與授權
 
-本專案改寫自 [Henryers/yolov8-traffic-app](https://github.com/Henryers/yolov8-traffic-app)（AGPL-3.0），沿用了偵測、軌跡與越線計數的功能構想；在此基礎上改成 Streamlit Web App、重寫越線計數，並新增低幀率追蹤器、領域微調與分析頁。程式註解中的「原專案」指的就是它。
-
-依 AGPL-3.0 條款，本專案同樣以 [AGPL-3.0](LICENSE) 釋出；[Ultralytics](https://github.com/ultralytics/ultralytics) 套件與 YOLO 模型也是 AGPL-3.0。
+本專案參考自 [Henryers/yolov8-traffic-app](https://github.com/Henryers/yolov8-traffic-app)（AGPL-3.0），依 AGPL-3.0 條款，本專案以 [AGPL-3.0](LICENSE) 釋出；[Ultralytics](https://github.com/ultralytics/ultralytics) 套件與 YOLO 模型也是 AGPL-3.0。
 
 VisDrone 與 IDD 限非商業研究用途，因此本 repo 不包含資料集與微調權重；若要把以它們微調的模型用於商業用途，請先確認各自的使用條款。
