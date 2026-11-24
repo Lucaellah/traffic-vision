@@ -51,10 +51,11 @@ mode = st.radio("拍攝方式", list(MODES), format_func=MODES.get, horizontal=T
 
 
 def line_sliders(key: str, y_default: int) -> tuple:
+    # 預設起點在右、終點在左，IN 箭頭朝上（由下往上穿越算 IN）
     c1, c2 = st.columns(2)
-    x1 = c1.slider("起點 X %", 0, 100, 0, key=f"{KEEP}{key}_x1")
+    x1 = c1.slider("起點 X %", 0, 100, 100, key=f"{KEEP}{key}_x1")
     y1 = c1.slider("起點 Y %", 0, 100, y_default, key=f"{KEEP}{key}_y1")
-    x2 = c2.slider("終點 X %", 0, 100, 100, key=f"{KEEP}{key}_x2")
+    x2 = c2.slider("終點 X %", 0, 100, 0, key=f"{KEEP}{key}_x2")
     y2 = c2.slider("終點 Y %", 0, 100, y_default, key=f"{KEEP}{key}_y2")
     return (
         (info.width * x1 / 100, info.height * y1 / 100),
